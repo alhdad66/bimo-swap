@@ -1,100 +1,505 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bimo Swap | المنصة الاحترافية</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { background-color: #0f172a; color: white; font-family: sans-serif; margin: 0; }
-        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
-        .btn-blue { background: linear-gradient(90deg, #2563eb, #3b82f6); }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, onSnapshot, doc, setDoc, getDoc } from 'firebase/firestore';
+import { 
+  ArrowRightLeft, 
+  Smartphone,
+  Star,
+  Copy,
+  Send,
+  ShieldCheck,
+  Camera,
+  Zap,
+  LayoutGrid,
+  Wallet,
+  CheckCircle2,
+  X,
+  MessageCircle,
+  Clock,
+  ChevronDown,
+  AlertCircle,
+  Users,
+  Share2,
+  Info,
+  Activity,
+  Headset,
+  Globe,
+  DollarSign,
+  Settings
+} from 'lucide-react';
 
-    <script type="text/babel">
-        // استيراد Firebase مباشرة
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+// --- Firebase Configuration (Your Real Data) ---
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-        // بياناتك الخاصة من الصور السابقة
-        const firebaseConfig = {
-            apiKey: "AIzaSyBKNuDGka3t1Lm8X_FaP",
-            authDomain: "bimo-swap.firebaseapp.com",
-            projectId: "bimo-swap",
-            storageBucket: "bimo-swap.firebasestorage.app",
-            messagingSenderId: "364296788582",
-            appId: "1:364296788582:web:178e845564468f9b9f52f3"
-        };
+const translations = {
+  ar: {
+    status: "الحالة: متوفر وسريع دائماً",
+    exchangeNote: "كل العمليات تتم فوراً، أقصى مدة للتنفيذ هي يوم واحد.",
+    supportBtn: "الدعم",
+    title: "بيمو سواب",
+    subTitle: "Bimo Swap",
+    send: "أرسل عبر",
+    receive: "استلم عبر",
+    starsAmount: "عدد النجوم",
+    usdAmount: "المبلغ بالدولار ($)",
+    netAmount: "المبلغ الصافي لك",
+    afterFees: "بعد الرسوم",
+    transferData: "بيانات التحويل",
+    copy: "نسخ العنوان",
+    copied: "تم النسخ!",
+    screenshot: "لقطة شاشة",
+    txId: "رقم العملية (ID)",
+    receivingInfo: "بيانات استلامك",
+    payStars: "ادفع {n} نجمة الآن",
+    confirm: "تأكيد الإرسال",
+    exchange: "التبادل",
+    referral: "الإحالة",
+    placeholder: "رقم الحساب أو المحفظة...",
+    errorWallet: "يرجى إدخال عنوان المحفظة أو الحساب للاستلام",
+    errorProof: "يرجى رفع صورة الإثبات أو كتابة رقم العملية (ID)",
+    errorAmount: "يرجى إدخال مبلغ صحيح",
+    errorMinStandard: "عذراً، أقل مبلغ صافي للاستلام لهذه الطريقة هو 5$",
+    errorMinInsta: "عذراً، أقل مبلغ صافي للاستلام لـ InstaPay هو 2$",
+    successMsg: "تم استلام طلبك بنجاح! جاري المعالجة...",
+    refTitle: "برنامج الشركاء",
+    refDesc: "شارك الرابط واحصل على 5% من كل عملية تبادل",
+    refLink: "رابط الإحالة الخاص بك",
+    calcFee: "الرسوم",
+    calcTime: "الوقت المقدر",
+    calcRate: "سعر الصرف",
+    timeValue: "5 - 30 دقيقة",
+    fixedFeeNote: "رسوم إضافية: 0.5$ (خدمة)",
+    fixedFeeNoteInsta: "رسوم إضافية: 0.2$ (خدمة)",
+    minAmountNote: "الحد الأدنى للصافي: 5$",
+    minAmountNoteInsta: "الحد الأدنى للصافي: 2$",
+    adminTitle: "لوحة التحكم السحابية"
+  },
+  en: {
+    status: "Status: Online & Fast",
+    exchangeNote: "All transactions are instant, max 24h execution.",
+    supportBtn: "Support",
+    title: "Bimo Swap",
+    subTitle: "Bimo Swap",
+    send: "Send Via",
+    receive: "Receive Via",
+    starsAmount: "Number of Stars",
+    usdAmount: "Amount in USD ($)",
+    netAmount: "Net Amount for You",
+    afterFees: "After Fees",
+    transferData: "Transfer Details",
+    copy: "Copy Address",
+    copied: "Copied!",
+    screenshot: "Screenshot",
+    txId: "Transaction ID",
+    receivingInfo: "Your Receiving Info",
+    confirm: "Confirm Sending",
+    exchange: "Exchange",
+    referral: "Referral",
+    placeholder: "Account or Wallet info...",
+    errorWallet: "Please enter your receiving wallet/account",
+    errorProof: "Please upload proof or enter ID",
+    errorAmount: "Please enter a valid amount",
+    errorMinStandard: "Minimum net amount for this method is 5$",
+    errorMinInsta: "Minimum net amount for InstaPay is 2$",
+    successMsg: "Order received successfully!",
+    refTitle: "Partner Program",
+    refDesc: "Earn 5% from every exchange",
+    refLink: "Your Referral Link",
+    calcFee: "Fees",
+    calcTime: "Est. Time",
+    calcRate: "Exchange Rate",
+    timeValue: "5 - 30 Mins",
+    fixedFeeNote: "Extra Fee: 0.5$ (Service)",
+    fixedFeeNoteInsta: "Extra Fee: 0.2$ (Service)",
+    minAmountNote: "Min Net: 5$",
+    minAmountNoteInsta: "Min Net: 2$",
+    adminTitle: "Cloud Admin Panel"
+  }
+};
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+const BimoLogo = ({ size = 42 }) => (
+  <div className="relative flex items-center justify-center">
+    <div className="absolute inset-0 bg-blue-500/30 blur-xl rounded-full"></div>
+    <img 
+      src="https://up6.cc/2026/05/177817395989891.jpg" 
+      alt="Bimo Logo" 
+      className="relative z-10 object-cover rounded-2xl border border-white/20 shadow-2xl"
+      style={{ width: size, height: size }}
+    />
+  </div>
+);
 
-        function App() {
-            const [amount, setAmount] = React.useState('');
-            const [wallet, setWallet] = React.useState('');
-            const [loading, setLoading] = React.useState(false);
+const MethodIcon = ({ id, size = 28 }) => {
+  const imgStyle = { width: size, height: size, borderRadius: size/4, objectFit: 'cover' };
+  const badgeStyle = { 
+    width: size * 0.45, 
+    height: size * 0.45, 
+    borderRadius: '50%', 
+    border: '1.5px solid black', 
+    position: 'absolute', 
+    bottom: -2, 
+    right: -2,
+    objectFit: 'cover',
+    backgroundColor: 'black'
+  };
+  
+  const UsdtMainLogo = () => (
+    <div className="bg-[#26A17B] rounded-full flex items-center justify-center text-white font-bold shadow-lg" style={{width: size, height: size, fontSize: size*0.55}}>$</div>
+  );
 
-            const sendOrder = async () => {
-                if(!amount || !wallet) return alert("أكمل البيانات يا عبود");
-                setLoading(true);
-                try {
-                    await addDoc(collection(db, "orders"), {
-                        amount: amount,
-                        wallet: wallet,
-                        time: serverTimestamp()
-                    });
-                    alert("تم الإرسال بنجاح! راجع لوحة التحكم.");
-                    setAmount(''); setWallet('');
-                } catch (e) {
-                    alert("خطأ! تأكد أنك فعلت Test Mode في Firebase");
-                }
-                setLoading(false);
-            };
+  switch (id) {
+    case 'stars': return <Star size={size} className="text-yellow-400 fill-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]" />;
+    case 'usdt_ton': return <div className="relative" style={{ width: size, height: size }}><UsdtMainLogo /><img src="https://up6.cc/2026/05/177817200499771.jpg" style={badgeStyle} /></div>;
+    case 'usdt_bnb': return <div className="relative" style={{ width: size, height: size }}><UsdtMainLogo /><img src="https://up6.cc/2026/05/177817190244111.jpg" style={badgeStyle} /></div>;
+    case 'faucetpay': return <div className="bg-blue-500 rounded-lg flex items-center justify-center text-white font-black" style={{width: size, height: size, fontSize: size*0.4}}>FP</div>;
+    case 'binance': return <img src="https://up6.cc/2026/05/177817190244111.jpg" style={imgStyle} />;
+    case 'cwallet': return <img src="https://up6.cc/2026/05/177817196567581.jpg" style={imgStyle} />;
+    case 'ton': return <img src="https://up6.cc/2026/05/177817200499771.jpg" style={imgStyle} />;
+    case 'vodafone': return <img src="https://up6.cc/2026/05/177818331530571.jpeg" style={imgStyle} />;
+    case 'asiapay': return <img src="https://up6.cc/2026/05/17781834516841.jpeg" style={imgStyle} />;
+    case 'paysera': return <img src="https://up6.cc/2026/05/17781903678191.png" style={imgStyle} />;
+    case 'bkash': return <img src="https://up6.cc/2026/05/177824587778081.jpeg" style={imgStyle} />;
+    case 'zaincash': return <img src="https://up6.cc/2026/05/17782464670791.png" style={imgStyle} />;
+    case 'instapay': return <img src="https://up6.cc/2026/05/17782470391531.png" style={imgStyle} />;
+    case 'mexc': return <div style={{ width: size, height: size }} className="bg-white rounded-lg flex items-center justify-center p-1 font-bold text-blue-600 text-[8px]">MEXC</div>;
+    default: return <Wallet size={size} />;
+  }
+};
 
-            return (
-                <div className="flex flex-col items-center justify-center min-h-screen p-4">
-                    <div className="glass p-8 rounded-3xl w-full max-w-md text-center shadow-2xl">
-                        <h1 className="text-3xl font-bold mb-2 text-blue-400">Bimo Swap</h1>
-                        <p className="text-slate-400 mb-8 text-sm">أسرع تبديل عملات في ليبيا 🇱🇾</p>
-                        
-                        <div className="space-y-4">
-                            <input 
-                                type="number" 
-                                placeholder="المبلغ (USDT)" 
-                                className="w-full p-4 rounded-2xl bg-slate-800 border-none text-center text-xl focus:ring-2 focus:ring-blue-500"
-                                value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                            />
-                            
-                            <input 
-                                type="text" 
-                                placeholder="رقم المحفظة أو الحساب" 
-                                className="w-full p-4 rounded-2xl bg-slate-800 border-none text-center focus:ring-2 focus:ring-blue-500"
-                                value={wallet}
-                                onChange={(e) => setWallet(e.target.value)}
-                            />
+const App = () => {
+  const [user, setUser] = useState(null);
+  const [lang, setLang] = useState('ar');
+  const [page, setPage] = useState('exchange');
+  const [amountInput, setAmountInput] = useState('');
+  const [sendMethod, setSendMethod] = useState('stars');
+  const [receiveMethod, setReceiveMethod] = useState('usdt_ton');
+  const [userReceiveInfo, setUserReceiveInfo] = useState('');
+  const [txId, setTxId] = useState('');
+  const [screenshot, setScreenshot] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [modalOpen, setModalOpen] = useState(null);
+  const [toast, setToast] = useState({ show: false, msg: '', type: 'error' });
+  const [orders, setOrders] = useState([]);
+  const fileInputRef = useRef(null);
 
-                            <button 
-                                onClick={sendOrder}
-                                disabled={loading}
-                                className="w-full btn-blue p-4 rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-all"
-                            >
-                                {loading ? 'جاري الإرسال...' : 'تأكيد التبديل'}
-                            </button>
-                        </div>
-                    </div>
+  const ADMIN_ID = "7416599626"; // Your Admin ID
+  const isAdmin = user?.uid === ADMIN_ID || window.Telegram?.WebApp?.initDataUnsafe?.user?.id?.toString() === ADMIN_ID;
+
+  // 1. Authentication (Rule 3)
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        await signInAnonymously(auth);
+      } catch (err) { console.error("Auth Failed", err); }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
+
+  // 2. Fetch Orders for Admin (Rule 1 & 2)
+  useEffect(() => {
+    if (!user || !isAdmin) return;
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, (err) => console.error("Firestore Error", err));
+    return () => unsub();
+  }, [user, isAdmin]);
+
+  const t = translations[lang] || translations['en'];
+  const isStarsInput = sendMethod === 'stars';
+
+  const sendMethods = {
+    stars: { name: "Telegram Stars", isStar: true },
+    usdt_ton: { name: "USDT (TON)", address: "EQC-BIMO-OFFICIAL-TON-WALLET-ADDR" },
+    usdt_bnb: { name: "USDT (BEP20)", address: "0x7-BIMO-OFFICIAL-BNB-WALLET-ADDR" },
+    faucetpay: { name: "FaucetPay", address: "bimo_swap@fpay.com" },
+    ton: { name: "TON", address: "UQ-BIMO-OFFICIAL-TON-COIN-ADDR" },
+    binance: { name: "Binance Pay", address: "Pay ID: 558900122" },
+    mexc: { name: "MEXC", address: "MEXC ID: 11022933" },
+    cwallet: { name: "C-Wallet", address: "C-ID: CW77821" }
+  };
+
+  const receiveMethods = {
+    usdt_ton: { name: "USDT (TON)", rate: 1, currency: "USD" },
+    usdt_bnb: { name: "USDT (BEP20)", rate: 1, currency: "USD" },
+    faucetpay: { name: "FaucetPay", rate: 1, currency: "USD" },
+    ton: { name: "TON", rate: 1, currency: "TON" },
+    vodafone: { name: "Vodafone Cash", rate: 50, currency: "EGP" },
+    instapay: { name: "InstaPay", rate: 55, currency: "EGP" },
+    asiapay: { name: "AsiaPay (IQD)", rate: 1310, currency: "IQD" },
+    zaincash: { name: "Zain Cash (IQD)", rate: 1750, currency: "IQD" },
+    paysera: { name: "Paysera", rate: 1, currency: "EUR" },
+    bkash: { name: "Bkash (৳)", rate: 150, currency: "৳" },
+    cwallet: { name: "C-Wallet", rate: 1, currency: "USD" },
+    mexc: { name: "MEXC", rate: 1, currency: "USD" }
+  };
+
+  const getFeeSettings = () => {
+    if (receiveMethod === 'instapay') return { percentage: 0.03, fixed: 0.2 };
+    if (['vodafone', 'asiapay', 'paysera', 'bkash', 'zaincash'].includes(receiveMethod)) return { percentage: 0.03, fixed: 0.5 };
+    return { percentage: 0.15, fixed: 0 };
+  };
+
+  const calculateResults = useMemo(() => {
+    const val = parseFloat(amountInput) || 0;
+    const grossUsd = isStarsInput ? val * 0.01 : val;
+    const settings = getFeeSettings();
+    const fee = (grossUsd * settings.percentage) + settings.fixed;
+    const netUsd = Math.max(0, grossUsd - fee);
+    const finalAmount = netUsd * receiveMethods[receiveMethod].rate;
+    return { grossUsd, fee, netUsd, finalAmount };
+  }, [amountInput, sendMethod, receiveMethod]);
+
+  const showToast = (msg, type = 'error') => {
+    setToast({ show: true, msg, type });
+    setTimeout(() => setToast({ show: false, msg: '', type: 'error' }), 3000);
+  };
+
+  const handleCopy = (text) => {
+    const el = document.createElement('textarea');
+    el.value = text;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    showToast(t.copied, 'success');
+  };
+
+  const handleProcess = async () => {
+    if (!user) return;
+    const { netUsd, finalAmount } = calculateResults;
+    
+    if (!amountInput || parseFloat(amountInput) <= 0) { showToast(t.errorAmount); return; }
+    if (receiveMethod === 'instapay' && netUsd < 2) { showToast(t.errorMinInsta); return; }
+    if (['vodafone', 'asiapay', 'paysera', 'bkash', 'zaincash'].includes(receiveMethod) && netUsd < 5) { showToast(t.errorMinStandard); return; }
+    if (!userReceiveInfo.trim()) { showToast(t.errorWallet); return; }
+    if (!sendMethods[sendMethod].isStar && !screenshot && !txId.trim()) { showToast(t.errorProof); return; }
+
+    setLoading(true);
+    try {
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'orders'), {
+        userId: user.uid,
+        tgUser: window.Telegram?.WebApp?.initDataUnsafe?.user || 'Guest',
+        sendAmount: amountInput,
+        sendMethod: sendMethods[sendMethod].name,
+        receiveAmount: finalAmount.toFixed(2),
+        receiveMethod: receiveMethods[receiveMethod].name,
+        userWallet: userReceiveInfo,
+        txId: txId || 'Proof Uploaded',
+        status: 'pending',
+        createdAt: serverTimestamp()
+      });
+      showToast(t.successMsg, 'success');
+      setAmountInput(''); setUserReceiveInfo(''); setTxId(''); setScreenshot(null);
+    } catch (e) {
+      showToast("خطأ في السحابة");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#020202] text-white font-sans pb-32 overflow-x-hidden" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+      
+      {/* Toast Notification */}
+      <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[1000] w-[90%] max-w-xs transition-all duration-500 transform ${toast.show ? 'translate-y-0 opacity-100 scale-100' : '-translate-y-12 opacity-0 scale-90 pointer-events-none'}`}>
+        <div className={`p-4 rounded-3xl border backdrop-blur-2xl shadow-2xl flex items-center gap-3 ${toast.type === 'success' ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+          {toast.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+          <p className="text-[11px] font-black flex-1 leading-tight">{toast.msg}</p>
+        </div>
+      </div>
+
+      {/* Header */}
+      <header className="p-5 bg-black/40 backdrop-blur-2xl border-b border-white/5 sticky top-0 z-[60] flex flex-col gap-4">
+        <div className="flex justify-between items-center w-full">
+          <div className="flex items-center gap-3">
+            <BimoLogo size={46} />
+            <div className="flex flex-col">
+              <h1 className="text-xl font-black tracking-tight leading-none text-white">{t.title}</h1>
+              <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest">{t.subTitle}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button onClick={() => setPage(page === 'admin' ? 'exchange' : 'admin')} className={`p-2.5 rounded-xl border transition-all ${page === 'admin' ? 'bg-red-600 border-red-500' : 'bg-white/5 border-white/10 text-red-500'}`}>
+                <Settings size={18} />
+              </button>
+            )}
+            <div className="flex gap-1 bg-white/5 p-1 rounded-2xl border border-white/10">
+              {['ar', 'en'].map(l => (
+                <button key={l} onClick={() => setLang(l)} className={`w-10 h-8 text-[10px] font-black rounded-xl transition-all ${lang === l ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500'}`}>
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {page === 'exchange' ? (
+        <main className="p-5 max-w-md mx-auto space-y-4 pt-4 animate-in">
+          <div className="bg-blue-600/5 border border-blue-500/10 py-2 rounded-full text-center flex items-center justify-center gap-2">
+            <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-[9px] font-black text-blue-400 uppercase tracking-[0.2em]">{t.status}</span>
+          </div>
+
+          {/* Send Method Button */}
+          <button onClick={() => setModalOpen('send')} className="w-full bg-[#0a0a0a] border border-white/10 p-5 rounded-[2.2rem] flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <MethodIcon id={sendMethod} size={34} />
+              <div className={lang === 'ar' ? 'text-right' : 'text-left'}>
+                <span className="text-[9px] text-gray-500 font-black block uppercase mb-0.5">{t.send}</span>
+                <span className="text-sm font-black">{sendMethods[sendMethod].name}</span>
+              </div>
+            </div>
+            <ChevronDown size={18} className="text-gray-500" />
+          </button>
+
+          {/* Amount Input */}
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-[2.8rem] p-6 shadow-2xl relative group">
+            <div className="bg-white/[0.03] p-8 rounded-[2.5rem] border border-white/5 text-center">
+              <span className="text-[10px] font-black text-gray-500 uppercase block mb-2 tracking-widest">{isStarsInput ? t.starsAmount : t.usdAmount}</span>
+              <input type="number" value={amountInput} onChange={(e) => setAmountInput(e.target.value)} placeholder="0" className="w-full bg-transparent text-6xl font-black text-center outline-none text-white placeholder:text-white/5" />
+            </div>
+          </div>
+
+          {/* Receive Method Button */}
+          <button onClick={() => setModalOpen('receive')} className="w-full bg-[#0a0a0a] border border-white/10 p-5 rounded-[2.2rem] flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <MethodIcon id={receiveMethod} size={34} />
+              <div className={lang === 'ar' ? 'text-right' : 'text-left'}>
+                <span className="text-[9px] text-gray-500 font-black block uppercase mb-0.5">{t.receive}</span>
+                <span className="text-sm font-black">{receiveMethods[receiveMethod].name}</span>
+              </div>
+            </div>
+            <ChevronDown size={18} className="text-gray-500" />
+          </button>
+
+          {/* Result Panel */}
+          <div className="bg-gradient-to-br from-blue-600/10 to-transparent border border-blue-500/20 p-7 rounded-[2.8rem] space-y-5 shadow-inner">
+            <div className="flex justify-between items-end">
+              <div className={lang === 'ar' ? 'text-right' : 'text-left'}>
+                <span className="text-[10px] font-black text-gray-500 block uppercase mb-1">{t.netAmount}</span>
+                <span className="text-3xl font-black text-blue-400">
+                  {calculateResults.finalAmount.toLocaleString(undefined, {maximumFractionDigits: 2})} {receiveMethods[receiveMethod].currency}
+                </span>
+              </div>
+              <div className="text-left bg-white/5 px-4 py-2 rounded-2xl border border-white/5">
+                  <span className="text-[9px] text-gray-600 font-black block uppercase italic">{t.afterFees}</span>
+                  <span className="text-sm font-black text-white/40">-{getFeeSettings().percentage * 100}%</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Confirmation Box */}
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-7 space-y-7 shadow-2xl">
+            {!sendMethods[sendMethod].isStar && (
+              <div className="bg-blue-600/5 border border-blue-500/20 p-6 rounded-[2.2rem] text-center space-y-4">
+                <span className="text-[10px] font-black text-blue-400 block uppercase tracking-widest">{t.transferData}</span>
+                <code className="block bg-black/60 p-4 rounded-2xl text-[10px] font-mono break-all border border-white/5 text-gray-300">
+                  {sendMethods[sendMethod].address}
+                </code>
+                <button onClick={() => handleCopy(sendMethods[sendMethod].address)} className="w-full py-3.5 bg-blue-600 rounded-2xl font-black text-[11px] flex items-center justify-center gap-2">
+                  <Copy size={14} /> {t.copy}
+                </button>
+                <input type="text" value={txId} onChange={(e) => setTxId(e.target.value)} placeholder={t.txId} className="w-full bg-black/40 p-4 rounded-xl text-center text-xs outline-none border border-white/5" />
+              </div>
+            )}
+
+            <div className="space-y-3">
+                <label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-2 mr-3 tracking-widest">
+                    <Smartphone size={14} className="text-blue-500" /> {t.receivingInfo}
+                </label>
+                <input type="text" value={userReceiveInfo} onChange={(e) => setUserReceiveInfo(e.target.value)} placeholder={t.placeholder} className="w-full bg-black border border-white/5 rounded-3xl py-5 px-7 outline-none text-xs font-black focus:border-blue-500/50" />
+            </div>
+
+            <button onClick={handleProcess} disabled={loading} className="w-full py-6 rounded-[2.2rem] font-black text-xl bg-gradient-to-r from-blue-700 to-blue-500 text-white shadow-lg flex justify-center items-center gap-4">
+              {loading ? <div className="h-7 w-7 border-4 border-white/20 border-t-white rounded-full animate-spin"></div> : <><Send size={24} /> {t.confirm}</>}
+            </button>
+          </div>
+        </main>
+      ) : page === 'referral' ? (
+        <main className="p-8 max-w-md mx-auto text-center space-y-8 animate-in pt-10">
+          <div className="w-24 h-24 bg-blue-600 rounded-[2.5rem] mx-auto flex items-center justify-center rotate-6 shadow-2xl border-4 border-white/10">
+            <Users size={48} className="text-white" />
+          </div>
+          <h2 className="text-3xl font-black">{t.refTitle}</h2>
+          <p className="text-gray-500 text-sm font-bold">{t.refDesc}</p>
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-8">
+             <div className="bg-black border border-white/5 p-6 rounded-3xl flex items-center justify-between">
+                <span className="text-xs font-mono text-blue-300">bimo.swap/r/{user?.uid.slice(0,5)}</span>
+                <button onClick={() => handleCopy(`bimo.swap/r/${user?.uid.slice(0,5)}`)} className="p-4 bg-blue-600 rounded-2xl"><Share2 size={20} /></button>
+             </div>
+          </div>
+        </main>
+      ) : (
+        <main className="p-5 max-w-md mx-auto space-y-4 pt-4 animate-in">
+          <h2 className="text-xl font-black text-red-500 italic mb-4">{t.adminTitle}</h2>
+          {orders.length === 0 ? (
+            <div className="text-center p-10 text-gray-600">لا توجد طلبات بعد</div>
+          ) : (
+            orders.map(order => (
+              <div key={order.id} className="bg-[#0a0a0a] border border-white/10 p-6 rounded-3xl space-y-3 relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-blue-600 text-[8px] font-black px-3 py-1 rounded-bl-xl uppercase">{order.status}</div>
+                <div className="flex justify-between items-center pt-2">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] text-gray-500 font-black uppercase">من</span>
+                    <span className="font-black">{order.sendAmount} {order.sendMethod}</span>
+                  </div>
+                  <div className="text-blue-500"><ArrowRightLeft size={16} /></div>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] text-gray-500 font-black uppercase">إلى</span>
+                    <span className="font-black text-green-500">{order.receiveAmount} {order.receiveMethod}</span>
+                  </div>
                 </div>
-            );
-        }
+                <div className="bg-black/50 p-3 rounded-xl border border-white/5 space-y-1">
+                  <div className="text-[9px] text-gray-400 font-mono break-all">المحفظة: {order.userWallet}</div>
+                  <div className="text-[9px] text-blue-400 font-mono">العملية: {order.txId}</div>
+                </div>
+              </div>
+            ))
+          )}
+        </main>
+      )}
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
+      {/* Modals & Navigation (Simplified for brevity) */}
+      {modalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center p-4">
+          <div className="absolute inset-0 bg-black/90 backdrop-blur-md" onClick={() => setModalOpen(null)}></div>
+          <div className="relative bg-[#0d0d0d] border border-white/10 w-full max-w-sm rounded-[3rem] p-8 shadow-2xl animate-in slide-in-from-bottom-full duration-500">
+            <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mb-8"></div>
+            <div className="grid grid-cols-2 gap-4 pb-4 max-h-[50vh] overflow-y-auto no-scrollbar">
+              {Object.keys(modalOpen === 'send' ? sendMethods : receiveMethods).map(key => (
+                <button key={key} onClick={() => { if(modalOpen === 'send') setSendMethod(key); else setReceiveMethod(key); setModalOpen(null); }} className={`flex flex-col items-center gap-3 p-6 rounded-[2.2rem] border transition-all ${ (modalOpen === 'send' ? sendMethod : receiveMethod) === key ? 'border-blue-600 bg-blue-600/10' : 'border-white/5 bg-white/[0.03]'}`}>
+                  <MethodIcon id={key} size={32} />
+                  <span className="text-[10px] font-black uppercase text-center">{(modalOpen === 'send' ? sendMethods[key] : receiveMethods[key]).name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <nav className="fixed bottom-8 left-6 right-6 z-[90]">
+        <div className="max-w-xs mx-auto bg-black/60 backdrop-blur-3xl border border-white/10 h-20 rounded-[2.5rem] flex justify-around items-center px-6 shadow-2xl">
+          <button onClick={() => setPage('exchange')} className={`flex flex-col items-center gap-1 transition-all ${page === 'exchange' ? 'text-blue-500' : 'text-gray-600'}`}>
+            <LayoutGrid size={24} />
+            <span className="text-[9px] font-black uppercase">التبادل</span>
+          </button>
+          <button onClick={() => setPage('referral')} className={`flex flex-col items-center gap-1 transition-all ${page === 'referral' ? 'text-blue-500' : 'text-gray-600'}`}>
+            <Users size={24} />
+            <span className="text-[9px] font-black uppercase">الإحالة</span>
+          </button>
+        </div>
+      </nav>
+    </div>
+  );
+};
+
+export default App;
