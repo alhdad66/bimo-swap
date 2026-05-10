@@ -1,568 +1,87 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, getDoc, collection, addDoc, serverTimestamp, onSnapshot, query, orderBy, limit } from "firebase/firestore";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "firebase/auth";
-import { 
-  ArrowRightLeft, 
-  Smartphone,
-  Star,
-  Copy,
-  Send,
-  ShieldCheck,
-  Camera,
-  Zap,
-  LayoutGrid,
-  Wallet,
-  CheckCircle2,
-  X,
-  MessageCircle,
-  Clock,
-  ChevronDown,
-  AlertCircle,
-  Users,
-  Share2,
-  Info,
-  Activity,
-  Headset,
-  Globe,
-  DollarSign,
-  Settings
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bimo Swap - تبديل العملات</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: white; font-family: sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
 
-// --- Firebase Configuration ---
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'bimo-swap-default';
+    <script type="text/babel">
+        // استيراد أدوات Firebase من الـ CDN
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-const translations = {
-  ar: {
-    status: "الحالة: متوفر وسريع دائماً",
-    exchangeNote: "كل العمليات تتم فوراً، أقصى مدة للتنفيذ هي يوم واحد.",
-    supportBtn: "الدعم",
-    title: "بيمو سواب",
-    subTitle: "Bimo Swap",
-    send: "أرسل عبر",
-    receive: "استلم عبر",
-    starsAmount: "عدد النجوم",
-    usdAmount: "المبلغ بالدولار ($)",
-    netAmount: "المبلغ الصافي لك",
-    afterFees: "بعد الرسوم",
-    transferData: "بيانات التحويل",
-    copy: "نسخ العنوان",
-    copied: "تم النسخ!",
-    screenshot: "لقطة شاشة",
-    txId: "رقم العملية (ID)",
-    receivingInfo: "بيانات استلامك",
-    payStars: "ادفع {n} نجمة الآن",
-    confirm: "تأكيد الإرسال",
-    exchange: "التبادل",
-    referral: "الإحالة",
-    placeholder: "رقم الحساب أو المحفظة...",
-    errorWallet: "يرجى إدخال عنوان المحفظة أو الحساب للاستلام",
-    errorProof: "يرجى رفع صورة الإثبات أو كتابة رقم العملية (ID)",
-    errorAmount: "يرجى إدخال مبلغ صحيح",
-    errorMinStandard: "عذراً، أقل مبلغ صافي للاستلام لهذه الطريقة هو 5$",
-    errorMinInsta: "عذراً، أقل مبلغ صافي للاستلام لـ InstaPay هو 2$",
-    successMsg: "تم استلام طلبك بنجاح! جاري المعالجة...",
-    refTitle: "برنامج الشركاء",
-    refDesc: "شارك الرابط واحصل على 5% من كل عملية تبادل",
-    refLink: "رابط الإحالة الخاص بك",
-    calcFee: "الرسوم",
-    calcTime: "الوقت المقدر",
-    calcRate: "سعر الصرف",
-    timeValue: "5 - 30 دقيقة",
-    fixedFeeNote: "رسوم إضافية: 0.5$ (خدمة)",
-    fixedFeeNoteInsta: "رسوم إضافية: 0.2$ (خدمة)",
-    minAmountNote: "الحد الأدنى للصافي: 5$",
-    minAmountNoteInsta: "الحد الأدنى للصافي: 2$",
-    adminTitle: "لوحة التحكم (الطلبات)"
-  },
-  en: {
-    status: "Status: Online & Fast",
-    exchangeNote: "All transactions are instant, max 24h execution.",
-    supportBtn: "Support",
-    title: "Bimo Swap",
-    subTitle: "Bimo Swap",
-    send: "Send Via",
-    receive: "Receive Via",
-    starsAmount: "Number of Stars",
-    usdAmount: "Amount in USD ($)",
-    netAmount: "Net Amount for You",
-    afterFees: "After Fees",
-    transferData: "Transfer Details",
-    copy: "Copy Address",
-    copied: "Copied!",
-    screenshot: "Screenshot",
-    txId: "Transaction ID",
-    receivingInfo: "Your Receiving Info",
-    confirm: "Confirm Sending",
-    exchange: "Exchange",
-    referral: "Referral",
-    placeholder: "Account or Wallet info...",
-    errorWallet: "Please enter your receiving wallet/account",
-    errorProof: "Please upload proof or enter ID",
-    errorAmount: "Please enter a valid amount",
-    errorMinStandard: "Minimum net amount for this method is 5$",
-    errorMinInsta: "Minimum net amount for InstaPay is 2$",
-    successMsg: "Order received successfully!",
-    refTitle: "Partner Program",
-    refDesc: "Earn 5% from every exchange",
-    refLink: "Your Referral Link",
-    calcFee: "Fees",
-    calcTime: "Est. Time",
-    calcRate: "Exchange Rate",
-    timeValue: "5 - 30 Mins",
-    fixedFeeNote: "Extra Fee: 0.5$ (Service)",
-    fixedFeeNoteInsta: "Extra Fee: 0.2$ (Service)",
-    minAmountNote: "Min Net: 5$",
-    minAmountNoteInsta: "Min Net: 2$",
-    adminTitle: "Admin Panel (Orders)"
-  }
-};
+        // بياناتك من الصور التي أرسلتها
+        const firebaseConfig = {
+            apiKey: "AIzaSyBKNuDGka3t1Lm8X_FaP",
+            authDomain: "bimo-swap.firebaseapp.com",
+            projectId: "bimo-swap",
+            storageBucket: "bimo-swap.firebasestorage.app",
+            messagingSenderId: "364296788582",
+            appId: "1:364296788582:web:178e845564468f9b9f52f3"
+        };
 
-const BimoLogo = ({ size = 42 }) => (
-  <div className="relative flex items-center justify-center">
-    <div className="absolute inset-0 bg-blue-500/30 blur-xl rounded-full"></div>
-    <img 
-      src="https://up6.cc/2026/05/177817395989891.jpg" 
-      alt="Bimo Logo" 
-      className="relative z-10 object-cover rounded-2xl border border-white/20 shadow-2xl"
-      style={{ width: size, height: size }}
-    />
-  </div>
-);
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-const MethodIcon = ({ id, size = 28 }) => {
-  const imgStyle = { width: size, height: size, borderRadius: size/4, objectFit: 'cover' };
-  const badgeStyle = { 
-    width: size * 0.45, 
-    height: size * 0.45, 
-    borderRadius: '50%', 
-    border: '1.5px solid black', 
-    position: 'absolute', 
-    bottom: -2, 
-    right: -2,
-    objectFit: 'cover',
-    backgroundColor: 'black'
-  };
-  
-  const UsdtMainLogo = () => (
-    <div className="bg-[#26A17B] rounded-full flex items-center justify-center text-white font-bold shadow-lg" style={{width: size, height: size, fontSize: size*0.55}}>$</div>
-  );
+        function BimoSwap() {
+            const [amount, setAmount] = React.useState('');
+            const [status, setStatus] = React.useState('');
 
-  switch (id) {
-    case 'stars': return <Star size={size} className="text-yellow-400 fill-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]" />;
-    case 'usdt_ton': return <div className="relative" style={{ width: size, height: size }}><UsdtMainLogo /><img src="https://up6.cc/2026/05/177817200499771.jpg" style={badgeStyle} /></div>;
-    case 'usdt_bnb': return <div className="relative" style={{ width: size, height: size }}><UsdtMainLogo /><img src="https://up6.cc/2026/05/177817190244111.jpg" style={badgeStyle} /></div>;
-    case 'faucetpay': return <div className="bg-blue-500 rounded-lg flex items-center justify-center text-white font-black" style={{width: size, height: size, fontSize: size*0.4}}>FP</div>;
-    case 'binance': return <img src="https://up6.cc/2026/05/177817190244111.jpg" style={imgStyle} />;
-    case 'cwallet': return <img src="https://up6.cc/2026/05/177817196567581.jpg" style={imgStyle} />;
-    case 'ton': return <img src="https://up6.cc/2026/05/177817200499771.jpg" style={imgStyle} />;
-    case 'vodafone': return <img src="https://up6.cc/2026/05/177818331530571.jpeg" style={imgStyle} />;
-    case 'asiapay': return <img src="https://up6.cc/2026/05/17781834516841.jpeg" style={imgStyle} />;
-    case 'paysera': return <img src="https://up6.cc/2026/05/17781903678191.png" style={imgStyle} />;
-    case 'bkash': return <img src="https://up6.cc/2026/05/177824587778081.jpeg" style={imgStyle} />;
-    case 'zaincash': return <img src="https://up6.cc/2026/05/17782464670791.png" style={imgStyle} />;
-    case 'instapay': return <img src="https://up6.cc/2026/05/17782470391531.png" style={imgStyle} />;
-    case 'mexc': return <div style={{ width: size, height: size }} className="bg-white rounded-lg flex items-center justify-center p-1"><svg viewBox="0 0 100 100" className="w-full h-full"><path d="M15 80 L35 25 L50 55 L65 25 L85 80" fill="none" stroke="#0052ff" strokeWidth="18" strokeLinecap="round" strokeLinejoin="round" /></svg></div>;
-    default: return <Wallet size={size} />;
-  }
-};
+            const handleSwap = async () => {
+                if(!amount) return alert("أدخل المبلغ أولاً");
+                setStatus('جاري إرسال الطلب...');
+                try {
+                    await addDoc(collection(db, "orders"), {
+                        amount: amount,
+                        timestamp: serverTimestamp(),
+                        status: "pending"
+                    });
+                    setStatus('تم استلام طلبك بنجاح! سيتم التواصل معك.');
+                } catch (e) {
+                    setStatus('خطأ: تأكد من تفعيل Test Mode في Firebase');
+                }
+            };
 
-const App = () => {
-  const [lang, setLang] = useState('ar');
-  const [page, setPage] = useState('exchange');
-  const [amountInput, setAmountInput] = useState('');
-  const [sendMethod, setSendMethod] = useState('stars');
-  const [receiveMethod, setReceiveMethod] = useState('usdt_ton');
-  const [userReceiveInfo, setUserReceiveInfo] = useState('');
-  const [txId, setTxId] = useState('');
-  const [screenshot, setScreenshot] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [modalOpen, setModalOpen] = useState(null);
-  const [toast, setToast] = useState({ show: false, msg: '', type: 'error' });
-  const [user, setUser] = useState(null);
-  const [orders, setOrders] = useState([]);
-  const fileInputRef = useRef(null);
+            return (
+                <div className="flex flex-col items-center justify-center min-h-screen p-4">
+                    <div className="glass p-8 rounded-3xl w-full max-w-md text-center">
+                        <img src="https://h.top4top.io/p_3052p8z2w1.png" className="w-32 mx-auto mb-4" alt="Bimo Logo" />
+                        <h1 className="text-2xl font-bold mb-6">بيمو سواب - Bimo Swap</h1>
+                        
+                        <input 
+                            type="number" 
+                            placeholder="أدخل المبلغ (USDT)" 
+                            className="w-full p-4 rounded-xl bg-slate-800 border-none mb-4 text-center text-xl"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                        />
 
-  const tg = window.Telegram?.WebApp;
-  const tgUser = tg?.initDataUnsafe?.user;
-  const currentUID = tgUser?.id?.toString() || "WEB_USER";
-  const IS_ADMIN = currentUID === "7416599626";
+                        <button 
+                            onClick={handleSwap}
+                            className="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-bold transition-all"
+                        >
+                            تبديل الآن
+                        </button>
 
-  const t = translations[lang] || translations['en'];
-  const isStarsInput = sendMethod === 'stars';
-
-  // --- Firebase Auth & Listeners ---
-  useEffect(() => {
-    const initAuth = async () => {
-      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-        await signInAnonymously(auth);
-      } else {
-        await signInAnonymously(auth);
-      }
-    };
-    initAuth();
-    const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
-        if (u) {
-            setUser(u);
-            // If Admin, listen to all orders
-            if (IS_ADMIN) {
-                const ordersRef = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
-                const q = query(ordersRef, orderBy('timestamp', 'desc'), limit(50));
-                onSnapshot(q, (snap) => {
-                    setOrders(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-                }, (err) => console.error(err));
-            }
-        }
-    });
-    return () => unsubscribeAuth();
-  }, [IS_ADMIN]);
-
-  const calculateGross = () => {
-    if (!amountInput || isNaN(amountInput)) return 0;
-    const val = parseFloat(amountInput);
-    return isStarsInput ? val * 0.01 : val;
-  };
-  
-  const getFeeSettings = () => {
-    if (receiveMethod === 'instapay') return { percentage: 0.03, fixed: 0.2 };
-    const hasFixedFee = ['vodafone', 'asiapay', 'paysera', 'bkash', 'zaincash'].includes(receiveMethod);
-    if (hasFixedFee) return { percentage: 0.03, fixed: 0.5 };
-    return { percentage: 0.15, fixed: 0 };
-  };
-
-  const calculateFee = () => {
-    const settings = getFeeSettings();
-    return (calculateGross() * settings.percentage) + settings.fixed;
-  };
-
-  const calculateNetUSD = () => {
-    const net = calculateGross() - calculateFee();
-    return net > 0 ? net : 0;
-  };
-
-  const getDisplayAmount = () => {
-    const usd = calculateNetUSD();
-    if (receiveMethod === 'vodafone') return `${(usd * 50).toLocaleString()} EGP`;
-    if (receiveMethod === 'instapay') return `${(usd * 55).toLocaleString()} EGP`;
-    if (receiveMethod === 'asiapay') return `${(usd * 1310).toLocaleString(undefined, {maximumFractionDigits: 0})} IQD`;
-    if (receiveMethod === 'zaincash') return `${(usd * 1750).toLocaleString(undefined, {maximumFractionDigits: 0})} IQD`;
-    if (receiveMethod === 'bkash') return `${(usd * 150).toLocaleString(undefined, {maximumFractionDigits: 0})} ৳`;
-    return `${usd.toFixed(3)} USD`;
-  };
-
-  const sendMethods = {
-    stars: { name: "Telegram Stars", isStar: true },
-    usdt_ton: { name: "USDT (TON)", address: "EQCxxxxxxxxxxxxxxxxxxxxxxxxxxxx" },
-    usdt_bnb: { name: "USDT (BEP20)", address: "0x7xxxxxxxxxxxxxxxxxxxxxxxxxxxx" },
-    faucetpay: { name: "FaucetPay", address: "bimo_swap@fpay.com" },
-    ton: { name: "TON", address: "UQxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" },
-    binance: { name: "Binance Pay", address: "Pay ID: 558900122" },
-    mexc: { name: "MEXC", address: "MEXC ID: 11022933" },
-    cwallet: { name: "C-Wallet", address: "C-ID: CW77821" }
-  };
-
-  const receiveMethods = {
-    usdt_ton: { name: "USDT (TON)" },
-    usdt_bnb: { name: "USDT (BEP20)" },
-    faucetpay: { name: "FaucetPay" },
-    ton: { name: "TON" },
-    vodafone: { name: "Vodafone Cash" },
-    instapay: { name: "InstaPay" },
-    asiapay: { name: "AsiaPay (IQD)" },
-    zaincash: { name: "Zain Cash (IQD)" },
-    paysera: { name: "Paysera" },
-    bkash: { name: "Bkash (৳)" },
-    cwallet: { name: "C-Wallet" },
-    mexc: { name: "MEXC" }
-  };
-
-  const showToast = (msg, type = 'error') => {
-    setToast({ show: true, msg, type });
-    setTimeout(() => setToast({ show: false, msg: '', type: 'error' }), 3000);
-  };
-
-  const handleCopy = (text) => {
-    navigator.clipboard.writeText(text);
-    showToast(t.copied, 'success');
-  };
-
-  const handleProcess = async () => {
-    if (!user) { showToast("Authenticating..."); return; }
-    const netAmount = calculateNetUSD();
-    if (!amountInput || parseFloat(amountInput) <= 0) { showToast(t.errorAmount); return; }
-    
-    if (receiveMethod === 'instapay' && netAmount < 2) { showToast(t.errorMinInsta); return; }
-    const fixedFeeMethods = ['vodafone', 'asiapay', 'paysera', 'bkash', 'zaincash'];
-    if (fixedFeeMethods.includes(receiveMethod) && netAmount < 5) { showToast(t.errorMinStandard); return; }
-
-    if (!userReceiveInfo.trim()) { showToast(t.errorWallet); return; }
-    if (!sendMethods[sendMethod].isStar && !screenshot && !txId.trim()) { showToast(t.errorProof); return; }
-
-    setLoading(true);
-    try {
-      const ordersRef = collection(db, 'artifacts', appId, 'public', 'data', 'orders');
-      await addDoc(ordersRef, {
-        uid: currentUID,
-        username: tgUser?.username || "Guest",
-        sendMethod,
-        receiveMethod,
-        amountSent: amountInput,
-        amountReceive: getDisplayAmount(),
-        wallet: userReceiveInfo,
-        txId,
-        timestamp: serverTimestamp(),
-        status: 'pending'
-      });
-      
-      showToast(t.successMsg, 'success');
-      setAmountInput(''); setUserReceiveInfo(''); setTxId(''); setScreenshot(null);
-    } catch (e) {
-      showToast("Error saving order. Check your rules.");
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-[#020202] text-white font-sans pb-32 overflow-x-hidden" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-      
-      {/* Toast */}
-      <div className={`fixed top-6 left-1/2 -translate-x-1/2 z-[120] w-[90%] max-w-xs transition-all duration-500 transform ${toast.show ? 'translate-y-0 opacity-100 scale-100' : '-translate-y-12 opacity-0 scale-90 pointer-events-none'}`}>
-        <div className={`p-4 rounded-3xl border backdrop-blur-2xl shadow-2xl flex items-center gap-3 ${toast.type === 'success' ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
-          <div className="p-1.5 rounded-full bg-current/20">
-            {toast.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
-          </div>
-          <p className="text-[11px] font-black flex-1 leading-tight">{toast.msg}</p>
-        </div>
-      </div>
-
-      <header className="p-5 bg-black/40 backdrop-blur-2xl border-b border-white/5 sticky top-0 z-[60] flex flex-col gap-4">
-        <div className="flex justify-between items-center w-full">
-          <div className="flex items-center gap-3 group cursor-pointer">
-            <BimoLogo size={46} />
-            <div className="flex flex-col">
-              <h1 className="text-xl font-black tracking-tight leading-none text-white">{t.title}</h1>
-              <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest">{t.subTitle}</span>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            {IS_ADMIN && (
-                <button onClick={() => setPage('admin')} className={`p-2.5 rounded-xl border ${page === 'admin' ? 'bg-red-500/20 border-red-500/50 text-red-500' : 'bg-white/5 border-white/10 text-gray-400'}`}>
-                    <Settings size={18} />
-                </button>
-            )}
-            <a href="https://t.me/YOUR_SUPPORT_LINK" target="_blank" className="bg-white/5 border border-white/10 p-2.5 rounded-xl text-blue-400 hover:bg-white/10 transition-all shadow-inner">
-               <Headset size={18} />
-            </a>
-            <div className="flex gap-1 bg-white/5 p-1 rounded-2xl border border-white/10">
-              {['ar', 'en'].map(l => (
-                <button key={l} onClick={() => setLang(l)} className={`w-10 h-8 text-[10px] font-black rounded-xl transition-all ${lang === l ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-white'}`}>
-                  {l.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {page === 'exchange' && (
-        <main className="p-5 max-w-md mx-auto space-y-4 pt-4 animate-in fade-in duration-700">
-          <div className="bg-blue-600/5 border border-blue-500/10 py-2 rounded-full text-center flex items-center justify-center gap-2">
-            <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-[9px] font-black text-blue-400 uppercase tracking-[0.2em]">{t.status}</span>
-          </div>
-
-          <button onClick={() => setModalOpen('send')} className="w-full bg-[#0a0a0a] border border-white/10 p-5 rounded-[2.2rem] flex items-center justify-between hover:bg-white/[0.04] transition-all active:scale-[0.98] group">
-            <div className="flex items-center gap-4">
-              <MethodIcon id={sendMethod} size={34} />
-              <div className={lang === 'ar' ? 'text-right' : 'text-left'}>
-                <span className="text-[9px] text-gray-500 font-black block uppercase tracking-tighter mb-0.5">{t.send}</span>
-                <span className="text-sm font-black">{sendMethods[sendMethod].name}</span>
-              </div>
-            </div>
-            <div className="p-2 bg-white/5 rounded-full"><ChevronDown size={18} className="text-gray-500" /></div>
-          </button>
-
-          <div className="bg-[#0a0a0a] border border-white/10 rounded-[2.8rem] p-6 shadow-2xl relative overflow-hidden group">
-            <div className="bg-white/[0.03] p-8 rounded-[2.5rem] border border-white/5 text-center relative z-10">
-              <span className="text-[10px] font-black text-gray-500 uppercase block mb-2 tracking-widest">
-                {isStarsInput ? t.starsAmount : t.usdAmount}
-              </span>
-              <div className="relative inline-flex items-center justify-center w-full">
-                {!isStarsInput && <span className="text-4xl font-black text-blue-500/50 mr-2">$</span>}
-                <input 
-                  type="number" 
-                  value={amountInput} 
-                  onChange={(e) => setAmountInput(e.target.value)} 
-                  placeholder="0" 
-                  className="w-full bg-transparent text-6xl font-black text-center outline-none text-white placeholder:text-white/5" 
-                />
-              </div>
-            </div>
-          </div>
-
-          <button onClick={() => setModalOpen('receive')} className="w-full bg-[#0a0a0a] border border-white/10 p-5 rounded-[2.2rem] flex items-center justify-between hover:bg-white/[0.04] transition-all active:scale-[0.98] group">
-            <div className="flex items-center gap-4">
-              <MethodIcon id={receiveMethod} size={34} />
-              <div className={lang === 'ar' ? 'text-right' : 'text-left'}>
-                <span className="text-[9px] text-gray-500 font-black block uppercase tracking-tighter mb-0.5">{t.receive}</span>
-                <span className="text-sm font-black">{receiveMethods[receiveMethod].name}</span>
-              </div>
-            </div>
-            <div className="p-2 bg-white/5 rounded-full"><ChevronDown size={18} className="text-gray-500" /></div>
-          </button>
-
-          <div className="bg-gradient-to-br from-blue-600/10 to-transparent border border-blue-500/20 p-7 rounded-[2.8rem] space-y-5 shadow-inner">
-            <div className="flex justify-between items-end">
-              <div className={lang === 'ar' ? 'text-right' : 'text-left'}>
-                <span className="text-[10px] font-black text-gray-500 block uppercase tracking-widest mb-1">{t.netAmount}</span>
-                <span className="text-3xl font-black text-blue-400">{getDisplayAmount()}</span>
-              </div>
-              <div className="text-left bg-white/5 px-4 py-2 rounded-2xl border border-white/5">
-                  <span className="text-[9px] text-gray-600 font-black block uppercase italic">{t.afterFees}</span>
-                  <span className="text-sm font-black text-white/40">-{getFeeSettings().percentage * 100}%</span>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2 pt-4 border-t border-white/5">
-                <div className="text-center"><span className="text-[8px] text-gray-500 uppercase font-black block mb-1">{t.calcFee}</span><span className="text-[11px] font-black text-red-500/70">${calculateFee().toFixed(3)}</span></div>
-                <div className="text-center border-x border-white/5"><span className="text-[8px] text-gray-500 uppercase font-black block mb-1">{t.calcTime}</span><span className="text-[11px] font-black text-blue-400">{t.timeValue}</span></div>
-                <div className="text-center"><span className="text-[8px] text-gray-500 uppercase font-black block mb-1">{t.calcRate}</span><span className="text-[11px] font-black text-green-500/70">1:1</span></div>
-            </div>
-          </div>
-
-          <div className="bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-7 space-y-7 shadow-2xl">
-            {!sendMethods[sendMethod].isStar && (
-              <div className="space-y-5">
-                <div className="bg-blue-600/5 border border-blue-500/20 p-6 rounded-[2.2rem] text-center space-y-4">
-                  <span className="text-[10px] font-black text-blue-400 block uppercase tracking-widest">{t.transferData}</span>
-                  <code className="block bg-black/60 p-4 rounded-2xl text-[11px] font-mono break-all border border-white/5 text-gray-300">{sendMethods[sendMethod].address}</code>
-                  <button onClick={() => handleCopy(sendMethods[sendMethod].address)} className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 rounded-2xl font-black text-[11px] flex items-center justify-center gap-2 transition-all"><Copy size={14} /> {t.copy}</button>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => fileInputRef.current.click()} className={`p-5 rounded-3xl border transition-all flex flex-col items-center gap-2 active:scale-95 ${screenshot ? 'border-green-500 bg-green-500/5 text-green-500' : 'border-white/5 bg-white/[0.02] text-gray-500 hover:bg-white/[0.04]'}`}>
-                    <Camera size={24} /><span className="text-[10px] font-black uppercase tracking-tighter">{screenshot ? 'Added' : t.screenshot}</span>
-                    <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => setScreenshot(e.target.files[0]?.name)} />
-                  </button>
-                  <div className={`bg-white/[0.02] border rounded-3xl p-5 flex flex-col items-center justify-center gap-2 focus-within:border-blue-500/30 ${txId.trim() ? 'border-green-500 bg-green-500/5' : 'border-white/5'}`}>
-                    <ShieldCheck size={24} className={txId.trim() ? "text-green-500" : "text-gray-500"} />
-                    <input type="text" value={txId} onChange={(e) => setTxId(e.target.value)} placeholder={t.txId} className="w-full bg-transparent text-center text-[10px] outline-none font-black" />
-                  </div>
-                </div>
-              </div>
-            )}
-            <div className="space-y-3">
-                <label className={`text-[10px] font-black text-gray-500 uppercase flex items-center gap-2 tracking-widest ${lang === 'ar' ? 'mr-3' : 'ml-3'}`}><Smartphone size={14} className="text-blue-500" /> {t.receivingInfo}</label>
-                <input type="text" value={userReceiveInfo} onChange={(e) => setUserReceiveInfo(e.target.value)} placeholder={t.placeholder} className="w-full bg-black border border-white/5 rounded-3xl py-5 px-7 outline-none text-xs font-black focus:border-blue-500/50 transition-all" />
-            </div>
-            <button onClick={handleProcess} disabled={loading} className="w-full py-6 rounded-[2.2rem] font-black text-xl bg-gradient-to-r from-blue-700 to-blue-500 text-white shadow-lg active:scale-95 transition-all flex justify-center items-center gap-4">
-              {loading ? <div className="h-7 w-7 border-4 border-white/20 border-t-white rounded-full animate-spin"></div> : <><Send size={24} /> {t.confirm}</>}
-            </button>
-          </div>
-        </main>
-      )}
-
-      {page === 'referral' && (
-        <main className="p-5 max-w-md mx-auto pt-10 space-y-8 animate-in slide-in-from-bottom-10 duration-700 text-center">
-          <div className="relative inline-block mb-4">
-              <div className="absolute inset-0 bg-blue-500 blur-3xl opacity-20"></div>
-              <div className="w-24 h-24 bg-gradient-to-tr from-blue-700 to-blue-400 rounded-[2rem] flex items-center justify-center mx-auto relative z-10 rotate-3"><Users size={48} className="text-white" /></div>
-          </div>
-          <h2 className="text-3xl font-black">{t.refTitle}</h2>
-          <p className="text-gray-500 text-sm font-bold max-w-xs mx-auto">{t.refDesc}</p>
-          <div className="bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-8 space-y-4">
-             <div className="bg-black border border-white/5 p-6 rounded-3xl flex items-center justify-between">
-                <span className="text-xs font-mono text-blue-300">t.me/BimoSwapBot?start={currentUID}</span>
-                <button onClick={() => handleCopy(`t.me/BimoSwapBot?start=${currentUID}`)} className="p-4 bg-blue-600 rounded-2xl active:scale-90 transition-all"><Share2 size={20} /></button>
-             </div>
-          </div>
-        </main>
-      )}
-
-      {page === 'admin' && IS_ADMIN && (
-        <main className="p-5 max-w-md mx-auto pt-4 space-y-6 animate-in fade-in">
-           <div className="flex justify-between items-center px-4">
-              <h2 className="text-xl font-black text-red-500 italic uppercase">{t.adminTitle}</h2>
-              <span className="bg-red-500/10 text-red-500 text-[10px] px-3 py-1 rounded-full font-black">Online</span>
-           </div>
-
-           <div className="space-y-4">
-             {orders.map((o) => (
-               <div key={o.id} className="bg-[#0a0a0a] border border-white/10 p-6 rounded-[2rem] space-y-3 relative overflow-hidden group">
-                  <div className="flex justify-between items-center">
-                    <div className="flex flex-col">
-                        <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest">User @{o.username}</span>
-                        <span className="text-[9px] text-blue-400 font-mono italic">UID: {o.uid}</span>
+                        {status && <p className="mt-4 text-sm text-blue-400">{status}</p>}
                     </div>
-                    <span className={`text-[9px] px-2 py-1 rounded font-black uppercase ${o.status === 'pending' ? 'bg-yellow-500/20 text-yellow-500' : 'bg-green-500/20 text-green-500'}`}>{o.status}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 border-y border-white/5 py-4">
-                      <div>
-                        <span className="text-[9px] text-gray-600 uppercase font-black block">Sent</span>
-                        <span className="font-black text-sm">{o.amountSent} <span className="text-[8px] text-blue-500 uppercase">{o.sendMethod}</span></span>
-                      </div>
-                      <div>
-                        <span className="text-[9px] text-gray-600 uppercase font-black block">To Receive</span>
-                        <span className="font-black text-sm text-green-400">{o.amountReceive}</span>
-                      </div>
-                  </div>
-                  <div className="space-y-1">
-                     <span className="text-[9px] text-gray-600 uppercase font-black block">Wallet / Info</span>
-                     <code className="text-[10px] bg-black p-2 rounded-lg block font-mono text-gray-400 break-all border border-white/5">{o.wallet}</code>
-                  </div>
-                  {o.txId && (
-                    <div className="text-[9px] text-blue-500/60 font-black italic">TX ID: {o.txId}</div>
-                  )}
-               </div>
-             ))}
-             {orders.length === 0 && <p className="text-center text-gray-500 font-black italic py-10">No orders found yet.</p>}
-           </div>
-        </main>
-      )}
+                </div>
+            );
+        }
 
-      {modalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center p-4">
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setModalOpen(null)}></div>
-          <div className="relative bg-[#0d0d0d] border border-white/10 w-full max-w-sm rounded-[3rem] p-8 shadow-2xl animate-in slide-in-from-bottom-full duration-500">
-            <div className="w-12 h-1.5 bg-white/10 rounded-full mx-auto mb-8"></div>
-            <div className="flex justify-between items-center mb-8 px-2">
-              <h2 className="text-xs font-black text-gray-500 uppercase tracking-widest">{modalOpen === 'send' ? t.send : t.receive}</h2>
-              <button onClick={() => setModalOpen(null)} className="p-2.5 bg-white/5 rounded-full"><X size={20} /></button>
-            </div>
-            <div className="grid grid-cols-2 gap-4 pb-4 max-h-[55vh] overflow-y-auto no-scrollbar">
-              {Object.keys(modalOpen === 'send' ? sendMethods : receiveMethods).map(key => (
-                <button key={key} onClick={() => { if(modalOpen === 'send') setSendMethod(key); else setReceiveMethod(key); setModalOpen(null); }} className={`flex flex-col items-center gap-4 p-8 rounded-[2.5rem] border transition-all ${ (modalOpen === 'send' ? sendMethod : receiveMethod) === key ? 'border-blue-600 bg-blue-600/10' : 'border-white/5 bg-white/[0.03] hover:bg-white/[0.06]'}`}>
-                  <MethodIcon id={key} size={38} />
-                  <span className="text-[10px] font-black uppercase text-center leading-tight">{(modalOpen === 'send' ? sendMethods[key] : receiveMethods[key]).name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <nav className="fixed bottom-8 left-6 right-6 z-[50]">
-        <div className="max-w-xs mx-auto bg-black/60 backdrop-blur-3xl border border-white/10 h-20 rounded-[2.5rem] flex justify-around items-center px-6 shadow-2xl">
-          <button onClick={() => setPage('exchange')} className={`flex flex-col items-center gap-1 transition-all ${page === 'exchange' ? 'text-blue-500 scale-110' : 'text-gray-600 hover:text-gray-400'}`}>
-            <LayoutGrid size={24} /><span className="text-[9px] font-black uppercase tracking-tighter">{t.exchange}</span>
-          </button>
-          <button onClick={() => setPage('referral')} className={`flex flex-col items-center gap-1 transition-all ${page === 'referral' ? 'text-blue-500 scale-110' : 'text-gray-600 hover:text-gray-400'}`}>
-            <Users size={24} /><span className="text-[9px] font-black uppercase tracking-tighter">{t.referral}</span>
-          </button>
-        </div>
-      </nav>
-
-      <a href="https://t.me/YOUR_TELEGRAM_LINK" target="_blank" className="fixed bottom-32 right-6 z-[40] bg-blue-600 p-4 rounded-[1.5rem] shadow-xl hover:scale-110 transition-all border border-blue-400/20">
-        <MessageCircle size={24} className="text-white" />
-        <div className="absolute top-0 right-0 w-3 h-3 bg-green-500 border-2 border-black rounded-full"></div>
-      </a>
-    </div>
-  );
-};
-
-export default App;
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<BimoSwap />);
+    </script>
+</body>
+</html>
