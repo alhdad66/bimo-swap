@@ -2,26 +2,27 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bimo Swap - تبديل العملات</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bimo Swap | المنصة الاحترافية</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #0f172a; color: white; font-family: sans-serif; }
-        .glass { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        body { background-color: #0f172a; color: white; font-family: sans-serif; margin: 0; }
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+        .btn-blue { background: linear-gradient(90deg, #2563eb, #3b82f6); }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
-        // استيراد أدوات Firebase من الـ CDN
+        // استيراد Firebase مباشرة
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // بياناتك من الصور التي أرسلتها
+        // بياناتك الخاصة من الصور السابقة
         const firebaseConfig = {
             apiKey: "AIzaSyBKNuDGka3t1Lm8X_FaP",
             authDomain: "bimo-swap.firebaseapp.com",
@@ -34,54 +35,66 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        function BimoSwap() {
+        function App() {
             const [amount, setAmount] = React.useState('');
-            const [status, setStatus] = React.useState('');
+            const [wallet, setWallet] = React.useState('');
+            const [loading, setLoading] = React.useState(false);
 
-            const handleSwap = async () => {
-                if(!amount) return alert("أدخل المبلغ أولاً");
-                setStatus('جاري إرسال الطلب...');
+            const sendOrder = async () => {
+                if(!amount || !wallet) return alert("أكمل البيانات يا عبود");
+                setLoading(true);
                 try {
                     await addDoc(collection(db, "orders"), {
                         amount: amount,
-                        timestamp: serverTimestamp(),
-                        status: "pending"
+                        wallet: wallet,
+                        time: serverTimestamp()
                     });
-                    setStatus('تم استلام طلبك بنجاح! سيتم التواصل معك.');
+                    alert("تم الإرسال بنجاح! راجع لوحة التحكم.");
+                    setAmount(''); setWallet('');
                 } catch (e) {
-                    setStatus('خطأ: تأكد من تفعيل Test Mode في Firebase');
+                    alert("خطأ! تأكد أنك فعلت Test Mode في Firebase");
                 }
+                setLoading(false);
             };
 
             return (
                 <div className="flex flex-col items-center justify-center min-h-screen p-4">
-                    <div className="glass p-8 rounded-3xl w-full max-w-md text-center">
-                        <img src="https://h.top4top.io/p_3052p8z2w1.png" className="w-32 mx-auto mb-4" alt="Bimo Logo" />
-                        <h1 className="text-2xl font-bold mb-6">بيمو سواب - Bimo Swap</h1>
+                    <div className="glass p-8 rounded-3xl w-full max-w-md text-center shadow-2xl">
+                        <h1 className="text-3xl font-bold mb-2 text-blue-400">Bimo Swap</h1>
+                        <p className="text-slate-400 mb-8 text-sm">أسرع تبديل عملات في ليبيا 🇱🇾</p>
                         
-                        <input 
-                            type="number" 
-                            placeholder="أدخل المبلغ (USDT)" 
-                            className="w-full p-4 rounded-xl bg-slate-800 border-none mb-4 text-center text-xl"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                        />
+                        <div className="space-y-4">
+                            <input 
+                                type="number" 
+                                placeholder="المبلغ (USDT)" 
+                                className="w-full p-4 rounded-2xl bg-slate-800 border-none text-center text-xl focus:ring-2 focus:ring-blue-500"
+                                value={amount}
+                                onChange={(e) => setAmount(e.target.value)}
+                            />
+                            
+                            <input 
+                                type="text" 
+                                placeholder="رقم المحفظة أو الحساب" 
+                                className="w-full p-4 rounded-2xl bg-slate-800 border-none text-center focus:ring-2 focus:ring-blue-500"
+                                value={wallet}
+                                onChange={(e) => setWallet(e.target.value)}
+                            />
 
-                        <button 
-                            onClick={handleSwap}
-                            className="w-full bg-blue-600 hover:bg-blue-700 p-4 rounded-xl font-bold transition-all"
-                        >
-                            تبديل الآن
-                        </button>
-
-                        {status && <p className="mt-4 text-sm text-blue-400">{status}</p>}
+                            <button 
+                                onClick={sendOrder}
+                                disabled={loading}
+                                className="w-full btn-blue p-4 rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-all"
+                            >
+                                {loading ? 'جاري الإرسال...' : 'تأكيد التبديل'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             );
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<BimoSwap />);
+        root.render(<App />);
     </script>
 </body>
 </html>
